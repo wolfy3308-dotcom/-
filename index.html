@@ -1,499 +1,157 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ar" dir="rtl">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>افحص - لوحة تشخيص الأعطال التفاعلية</title>
-    <!-- Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SP611E — لوحة أعطال السيارة</title>
+<style>
+*{box-sizing:border-box}body{margin:0;font-family:Tahoma,Arial,sans-serif;background:#0b0f14;color:#eef3f8}
+.wrap{max-width:1050px;margin:auto;padding:24px}
+header{display:flex;gap:16px;align-items:center;justify-content:space-between;flex-wrap:wrap;margin-bottom:22px}
+h1{margin:0;font-size:28px}.sub{color:#9eabb8;margin-top:6px}
+.panel{background:#111820;border:1px solid #26313c;border-radius:18px;padding:18px;margin-bottom:18px;box-shadow:0 8px 30px #0004}
+.controls{display:flex;gap:10px;flex-wrap:wrap}
+button{border:0;border-radius:12px;padding:13px 17px;font-size:15px;font-weight:700;cursor:pointer;color:#fff;background:#263442}
+button:hover{filter:brightness(1.12)}button.primary{background:#1778d2}button.danger{background:#9e2732}button.off{background:#343d46}
+.status{display:inline-flex;align-items:center;gap:8px;padding:9px 12px;border-radius:999px;background:#19232c;color:#aab6c1}
+.dot{width:10px;height:10px;border-radius:50%;background:#d14}.dot.on{background:#27c56a}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px}
+.fault{min-height:125px;text-align:right;position:relative;overflow:hidden;border:1px solid #293640;background:#151d25}
+.fault .icon{font-size:30px;display:block;margin-bottom:8px}.fault small{display:block;color:#9eabb8;margin-top:5px}
+.fault.active{outline:2px solid #fff5;transform:translateY(-1px)}
+.preview{height:80px;border-radius:14px;background:#05070a;border:1px solid #28323b;display:flex;align-items:center;justify-content:center;gap:8px}
+.pixel{width:22px;height:22px;border-radius:50%;background:#15191e;box-shadow:0 0 12px #000}
+.note{font-size:13px;line-height:1.7;color:#9eabb8}
+.log{font-family:Consolas,monospace;direction:ltr;text-align:left;white-space:pre-wrap;background:#080b0f;border-radius:12px;padding:12px;min-height:70px;color:#a9c5d8}
+</style>
 </head>
-<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col justify-between p-4 md:p-8">
-
-    <!-- الهيدر والربط مع SP611E -->
-    <header class="max-w-5xl w-full mx-auto bg-slate-900 border border-slate-800 p-5 rounded-2xl shadow-2xl flex flex-col md:flex-row justify-between items-center gap-4">
-        <div class="flex items-center gap-3">
-            <div class="p-3 bg-amber-500/10 border border-amber-500/30 rounded-xl text-amber-400">
-                <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
-                </svg>
-            </div>
-            <div>
-                <h1 class="text-2xl font-bold text-white tracking-wide">نظام افحص <span class="text-amber-400 text-sm font-normal">| التشخيص الذكي</span></h1>
-                <p class="text-xs text-slate-400">تحكم إضاءة التنبيهات لشريط LED عبر قطعتك SP611E</p>
-            </div>
-        </div>
-
-        <div class="flex items-center gap-3">
-            <span id="btBadge" class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-rose-500/10 text-rose-400 border border-rose-500/20">
-                اللمبات غير متصلة
-            </span>
-            <button onclick="connectSP611E()" class="bg-amber-500 hover:bg-amber-400 active:scale-95 text-slate-950 font-bold px-5 py-2.5 rounded-xl transition duration-200 text-sm shadow-lg shadow-amber-500/20 flex items-center gap-2">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A13.916 13.916 0 008 11a4 4 0 118 0c0 1.017-.07 2.019-.203 3m-2.118 6.844A21.88 21.88 0 0015.171 17m3.839 1.132c.645-2.266.99-4.659.99-7.132A8 8 0 008 4.07M3 15.364c.64-1.319 1-2.8 1-4.364 0-1.457-.335-2.84-.93-4.072"></path></svg>
-                اتصال بالبلوتوث
-            </button>
-        </div>
-    </header>
-
-    <!-- شاشة الأعطال التفاعلية -->
-    <main class="max-w-5xl w-full mx-auto my-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
-
-        <!-- 1. عطل المحرك (Check Engine) -->
-        <div onclick="triggerFault('engine')" class="group bg-slate-900 border border-slate-800 hover:border-amber-500/50 p-6 rounded-2xl cursor-pointer transition duration-300 flex flex-col justify-between items-center text-center shadow-lg hover:shadow-amber-500/10">
-            <div class="p-4 bg-amber-500/10 rounded-2xl text-amber-400 mb-4 group-hover:scale-110 transition duration-300">
-                <!-- أيقونة عطل المحرك الرسمية (Check Engine) -->
-                <svg class="w-12 h-12" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M7 4V2h3v2h2V2h3v2h1a2 2 0 0 1 2 2v2h1a1 1 0 0 1 1 1v4a1 1 0 0 1-1 1h-1v2h2v3h-2v2a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-2H2v-3h2v-2H3a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1h1V6a2 2 0 0 1 2-2h1zm0 4v10h10V8H7zm2 2h6v2H9v-2zm0 4h4v2H9v-2z"/>
-                </svg>
-            </div>
-            <h3 class="text-lg font-bold text-white mb-1">عطل المحرك</h3>
-            <p class="text-xs text-slate-400 mb-4">Check Engine Light</p>
-            <span class="w-full py-2.5 rounded-xl bg-amber-500/20 text-amber-300 text-xs font-semibold group-hover:bg-amber-500 group-hover:text-slate-950 transition duration-200">
-                محاكاة العطل (إضاءة صفراء)
-            </span>
-        </div>
-
-        <!-- 2. عطل نظام الفرامل (Brakes) -->
-        <div onclick="triggerFault('brakes')" class="group bg-slate-900 border border-slate-800 hover:border-rose-500/50 p-6 rounded-2xl cursor-pointer transition duration-300 flex flex-col justify-between items-center text-center shadow-lg hover:shadow-rose-500/10">
-            <div class="p-4 bg-rose-500/10 rounded-2xl text-rose-500 mb-4 group-hover:scale-110 transition duration-300">
-                <svg class="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <circle cx="12" cy="12" r="9" stroke-width="2"/>
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M5 12a7 7 0 0114 0"/>
-                </svg>
-            </div>
-            <h3 class="text-lg font-bold text-white mb-1">نظام الفرامل</h3>
-            <p class="text-xs text-slate-400 mb-4">Brake System Warning</p>
-            <span class="w-full py-2.5 rounded-xl bg-rose-500/20 text-rose-300 text-xs font-semibold group-hover:bg-rose-500 group-hover:text-white transition duration-200">
-                محاكاة العطل (إضاءة حمراء)
-            </span>
-        </div>
-
-        <!-- 3. عطل البطارية والكهرباء (Battery) -->
-        <div onclick="triggerFault('battery')" class="group bg-slate-900 border border-slate-800 hover:border-blue-500/50 p-6 rounded-2xl cursor-pointer transition duration-300 flex flex-col justify-between items-center text-center shadow-lg hover:shadow-blue-500/10">
-            <div class="p-4 bg-blue-500/10 rounded-2xl text-blue-400 mb-4 group-hover:scale-110 transition duration-300">
-                <svg class="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <rect x="2" y="7" width="20" height="12" rx="2" stroke-width="2"/>
-                    <path stroke-linecap="round" stroke-width="2" d="M6 5v2m12-2v2M8 11h3m2 0h3m-7 4h2"/>
-                </svg>
-            </div>
-            <h3 class="text-lg font-bold text-white mb-1">النظام الكهربائي</h3>
-            <p class="text-xs text-slate-400 mb-4">Battery / Alternator</p>
-            <span class="w-full py-2.5 rounded-xl bg-blue-500/20 text-blue-300 text-xs font-semibold group-hover:bg-blue-600 group-hover:text-white transition duration-200">
-                محاكاة العطل (إضاءة زرقاء)
-            </span>
-        </div>
-
-        <!-- 4. ارتفاع الحرارة (Overheating) -->
-        <div onclick="triggerFault('heat')" class="group bg-slate-900 border border-slate-800 hover:border-orange-500/50 p-6 rounded-2xl cursor-pointer transition duration-300 flex flex-col justify-between items-center text-center shadow-lg hover:shadow-orange-500/10">
-            <div class="p-4 bg-orange-500/10 rounded-2xl text-orange-500 mb-4 group-hover:scale-110 transition duration-300">
-                <svg class="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 14.76V3.5a2.5 2.5 0 00-5 0v11.26a4.5 4.5 0 105 0z"/>
-                </svg>
-            </div>
-            <h3 class="text-lg font-bold text-white mb-1">حرارة المحرك</h3>
-            <p class="text-xs text-slate-400 mb-4">Engine Overheating</p>
-            <span class="w-full py-2.5 rounded-xl bg-orange-500/20 text-orange-300 text-xs font-semibold group-hover:bg-orange-500 group-hover:text-slate-950 transition duration-200">
-                محاكاة العطل (إضاءة برتقالية)
-            </span>
-        </div>
-
-    </main>
-
-    <!-- إعادة الضبط وسجل التشخيص -->
-    <footer class="max-w-5xl w-full mx-auto bg-slate-900 border border-slate-800 p-5 rounded-2xl flex flex-col gap-4">
-        <div class="flex flex-col md:flex-row justify-between items-center gap-4">
-            <button onclick="triggerFault('reset')" class="w-full md:w-auto bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white font-bold px-6 py-3 rounded-xl transition duration-200 shadow-lg shadow-emerald-600/20 flex justify-center items-center gap-2">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
-                إعادة الضبط (إطفاء الأعطال / إضاءة خضراء)
-            </button>
-            <div class="text-xs text-slate-400 font-mono" id="currentModeText">الحالة الحالية: جاهز</div>
-        </div>
-
-        <div class="bg-slate-950 p-3 rounded-xl border border-slate-800 text-right">
-            <div class="text-xs text-amber-400 mb-1 font-bold">سجل أوامر SP611E المباشرة:</div>
-            <p id="debugLog" class="text-xs text-slate-300 font-mono h-16 overflow-y-auto">في انتظار الاتصال بالبلوتوث...</p>
-        </div>
-    </footer>
-
-    <script>
-        // UUIDs الخاصة بقطعة SP611E
-        const SERVICE_UUIDS = [0xffe0, 0xfff0, '0000ffe0-0000-1000-8000-00805f9b34fb'];
-        const CHAR_UUIDS = [0xffe1, 0xfff1, '0000ffe1-0000-1000-8000-00805f9b34fb'];
-
-        let bluetoothDevice = null;
-        let ledCharacteristic = null;
-
-        function log(msg) {
-            const el = document.getElementById('debugLog');
-            el.innerHTML += `<br>> ${msg}`;
-            el.scrollTop = el.scrollHeight;
-        }
-
-        async function connectSP611E() {
-            const badge = document.getElementById('btBadge');
-            log("جارِ البحث عن قطعة البلوتوث...");
-
-            try {
-                bluetoothDevice = await navigator.bluetooth.requestDevice({
-                    acceptAllDevices: true,
-                    optionalServices: SERVICE_UUIDS
-                });
-
-                bluetoothDevice.addEventListener('gattserverdisconnected', () => {
-                    badge.innerText = "انقطع الاتصال";
-                    badge.className = "px-3 py-1.5 text-xs font-semibold rounded-lg bg-rose-500/10 text-rose-400 border border-rose-500/20";
-                    log("تم قطع الاتصال بالبلوتوث.");
-                    ledCharacteristic = null;
-                });
-
-                log("جارِ الربط بـ GATT Server...");
-                const server = await bluetoothDevice.gatt.connect();
-
-                let primaryService = null;
-                for (let sUuid of SERVICE_UUIDS) {
-                    try {
-                        primaryService = await server.getPrimaryService(sUuid);
-                        if (primaryService) break;
-                    } catch (e) {}
-                }
-
-                if (!primaryService) throw new Error("لم يتم العثور على الخدمة الصحيحة.");
-
-                for (let cUuid of CHAR_UUIDS) {
-                    try {
-                        ledCharacteristic = await primaryService.getCharacteristic(cUuid);
-                        if (ledCharacteristic) break;
-                    } catch (e) {}
-                }
-
-                if (!ledCharacteristic) throw new Error("لم يتم العثور على خاصية الكتابة.");
-
-                badge.innerText = "متصل بـ SP611E";
-                badge.className = "px-3 py-1.5 text-xs font-semibold rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20";
-                log("تم الاتصال بنجاح بقطعة SP611E!");
-
-                // إرسال أمر تشغيل الطاقة
-                await sendPowerOn();
-
-            } catch (err) {
-                log("خطأ في الاتصال: " + err.message);
-            }
-        }
-
-        async function sendPowerOn() {
-            if (!ledCharacteristic) return;
-            log("إرسال أمر التشغيل (Power ON)...");
-            const pwrPacket = new Uint8Array([0x38, 0x01, 0x00, 0x00, 0x00, 0x22, 0x83]);
-            await writeData(pwrPacket);
-        }
-
-        async function writeData(packet) {
-            if (!ledCharacteristic) return;
-            if (ledCharacteristic.properties.writeWithoutResponse) {
-                await ledCharacteristic.writeValueWithoutResponse(packet);
-            } else {
-                await ledCharacteristic.writeValue(packet);
-            }
-        }
-
-        async function sendColorToSP611E(r, g, b) {
-            if (!ledCharacteristic) {
-                log(`[محاكاة الشاشة] اللون المختار: R:${r} G:${g} B:${b} (يرجى الاتصال بالبلوتوث لتطبيق اللون)`);
-                return;
-            }
-
-            log(`إرسال حزمة اللون للمبات: R:${r} G:${g} B:${b}`);
-
-            // حزم الأوامر المتوافقة مع بروتوكولات Sperll / BanlanX
-            const packetSperll = new Uint8Array([0x38, r, g, b, 0x00, 0x22, 0x83]);
-            const packetBanlan = new Uint8Array([0x53, 0x05, 0x01, r, g, b, 0x00, 0x53]);
-
-            try {
-                await writeData(packetSperll);
-                await writeData(packetBanlan);
-            } catch (e) {
-                log("فشل الإرسال: " + e.message);
-            }
-        }
-
-        function triggerFault(type) {
-            const modeText = document.getElementById('currentModeText');
-
-            switch(type) {
-                case 'engine':
-                    modeText.innerText = "الحالة الحالية: عطل المحرك (Check Engine)";
-                    sendColorToSP611E(255, 180, 0); // لون أصفر تحذيري
-                    break;
-
-                case 'brakes':
-                    modeText.innerText = "الحالة الحالية: عطل الفرامل (Brakes)";
-                    sendColorToSP611E(255, 0, 0); // لون أحمر
-                    break;
-
-                case 'battery':
-                    modeText.innerText = "الحالة الحالية: عطل النظام الكهربائي (Battery)";
-                    sendColorToSP611E(0, 100, 255); // لون أزرق
-                    break;
-
-                case 'heat':
-                    modeText.innerText = "الحالة الحالية: ارتفاع حرارة المحرك (Overheating)";
-                    sendColorToSP611E(255, 60, 0); // لون برتقالي محمر
-                    break;
-
-                case 'reset':
-                    modeText.innerText = "الحالة الحالية: الفحص سليم / تشغيل عادي";
-                    sendColorToSP611E(0, 255, 0); // لون أخضر
-                    break;
-            }
-        }
-    </script>
-</body>
-</html><!DOCTYPE html>
-<html lang="ar" dir="rtl">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>افحص - لوحة تشخيص الأعطال التفاعلية</title>
-    <!-- Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
-</head>
-<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col justify-between p-4 md:p-8">
-
-    <!-- الهيدر والربط مع SP611E -->
-    <header class="max-w-5xl w-full mx-auto bg-slate-900 border border-slate-800 p-5 rounded-2xl shadow-2xl flex flex-col md:flex-row justify-between items-center gap-4">
-        <div class="flex items-center gap-3">
-            <div class="p-3 bg-amber-500/10 border border-amber-500/30 rounded-xl text-amber-400">
-                <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
-                </svg>
-            </div>
-            <div>
-                <h1 class="text-2xl font-bold text-white tracking-wide">نظام افحص <span class="text-amber-400 text-sm font-normal">| التشخيص الذكي</span></h1>
-                <p class="text-xs text-slate-400">تحكم إضاءة التنبيهات لشريط LED عبر قطعتك SP611E</p>
-            </div>
-        </div>
-
-        <div class="flex items-center gap-3">
-            <span id="btBadge" class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-rose-500/10 text-rose-400 border border-rose-500/20">
-                اللمبات غير متصلة
-            </span>
-            <button onclick="connectSP611E()" class="bg-amber-500 hover:bg-amber-400 active:scale-95 text-slate-950 font-bold px-5 py-2.5 rounded-xl transition duration-200 text-sm shadow-lg shadow-amber-500/20 flex items-center gap-2">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A13.916 13.916 0 008 11a4 4 0 118 0c0 1.017-.07 2.019-.203 3m-2.118 6.844A21.88 21.88 0 0015.171 17m3.839 1.132c.645-2.266.99-4.659.99-7.132A8 8 0 008 4.07M3 15.364c.64-1.319 1-2.8 1-4.364 0-1.457-.335-2.84-.93-4.072"></path></svg>
-                اتصال بالبلوتوث
-            </button>
-        </div>
-    </header>
-
-    <!-- شاشة الأعطال التفاعلية -->
-    <main class="max-w-5xl w-full mx-auto my-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
-
-        <!-- 1. عطل المحرك (Check Engine) -->
-        <div onclick="triggerFault('engine')" class="group bg-slate-900 border border-slate-800 hover:border-amber-500/50 p-6 rounded-2xl cursor-pointer transition duration-300 flex flex-col justify-between items-center text-center shadow-lg hover:shadow-amber-500/10">
-            <div class="p-4 bg-amber-500/10 rounded-2xl text-amber-400 mb-4 group-hover:scale-110 transition duration-300">
-                <!-- أيقونة عطل المحرك الرسمية (Check Engine) -->
-                <svg class="w-12 h-12" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M7 4V2h3v2h2V2h3v2h1a2 2 0 0 1 2 2v2h1a1 1 0 0 1 1 1v4a1 1 0 0 1-1 1h-1v2h2v3h-2v2a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-2H2v-3h2v-2H3a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1h1V6a2 2 0 0 1 2-2h1zm0 4v10h10V8H7zm2 2h6v2H9v-2zm0 4h4v2H9v-2z"/>
-                </svg>
-            </div>
-            <h3 class="text-lg font-bold text-white mb-1">عطل المحرك</h3>
-            <p class="text-xs text-slate-400 mb-4">Check Engine Light</p>
-            <span class="w-full py-2.5 rounded-xl bg-amber-500/20 text-amber-300 text-xs font-semibold group-hover:bg-amber-500 group-hover:text-slate-950 transition duration-200">
-                محاكاة العطل (إضاءة صفراء)
-            </span>
-        </div>
-
-        <!-- 2. عطل نظام الفرامل (Brakes) -->
-        <div onclick="triggerFault('brakes')" class="group bg-slate-900 border border-slate-800 hover:border-rose-500/50 p-6 rounded-2xl cursor-pointer transition duration-300 flex flex-col justify-between items-center text-center shadow-lg hover:shadow-rose-500/10">
-            <div class="p-4 bg-rose-500/10 rounded-2xl text-rose-500 mb-4 group-hover:scale-110 transition duration-300">
-                <svg class="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <circle cx="12" cy="12" r="9" stroke-width="2"/>
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M5 12a7 7 0 0114 0"/>
-                </svg>
-            </div>
-            <h3 class="text-lg font-bold text-white mb-1">نظام الفرامل</h3>
-            <p class="text-xs text-slate-400 mb-4">Brake System Warning</p>
-            <span class="w-full py-2.5 rounded-xl bg-rose-500/20 text-rose-300 text-xs font-semibold group-hover:bg-rose-500 group-hover:text-white transition duration-200">
-                محاكاة العطل (إضاءة حمراء)
-            </span>
-        </div>
-
-        <!-- 3. عطل البطارية والكهرباء (Battery) -->
-        <div onclick="triggerFault('battery')" class="group bg-slate-900 border border-slate-800 hover:border-blue-500/50 p-6 rounded-2xl cursor-pointer transition duration-300 flex flex-col justify-between items-center text-center shadow-lg hover:shadow-blue-500/10">
-            <div class="p-4 bg-blue-500/10 rounded-2xl text-blue-400 mb-4 group-hover:scale-110 transition duration-300">
-                <svg class="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <rect x="2" y="7" width="20" height="12" rx="2" stroke-width="2"/>
-                    <path stroke-linecap="round" stroke-width="2" d="M6 5v2m12-2v2M8 11h3m2 0h3m-7 4h2"/>
-                </svg>
-            </div>
-            <h3 class="text-lg font-bold text-white mb-1">النظام الكهربائي</h3>
-            <p class="text-xs text-slate-400 mb-4">Battery / Alternator</p>
-            <span class="w-full py-2.5 rounded-xl bg-blue-500/20 text-blue-300 text-xs font-semibold group-hover:bg-blue-600 group-hover:text-white transition duration-200">
-                محاكاة العطل (إضاءة زرقاء)
-            </span>
-        </div>
-
-        <!-- 4. ارتفاع الحرارة (Overheating) -->
-        <div onclick="triggerFault('heat')" class="group bg-slate-900 border border-slate-800 hover:border-orange-500/50 p-6 rounded-2xl cursor-pointer transition duration-300 flex flex-col justify-between items-center text-center shadow-lg hover:shadow-orange-500/10">
-            <div class="p-4 bg-orange-500/10 rounded-2xl text-orange-500 mb-4 group-hover:scale-110 transition duration-300">
-                <svg class="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 14.76V3.5a2.5 2.5 0 00-5 0v11.26a4.5 4.5 0 105 0z"/>
-                </svg>
-            </div>
-            <h3 class="text-lg font-bold text-white mb-1">حرارة المحرك</h3>
-            <p class="text-xs text-slate-400 mb-4">Engine Overheating</p>
-            <span class="w-full py-2.5 rounded-xl bg-orange-500/20 text-orange-300 text-xs font-semibold group-hover:bg-orange-500 group-hover:text-slate-950 transition duration-200">
-                محاكاة العطل (إضاءة برتقالية)
-            </span>
-        </div>
-
-    </main>
-
-    <!-- إعادة الضبط وسجل التشخيص -->
-    <footer class="max-w-5xl w-full mx-auto bg-slate-900 border border-slate-800 p-5 rounded-2xl flex flex-col gap-4">
-        <div class="flex flex-col md:flex-row justify-between items-center gap-4">
-            <button onclick="triggerFault('reset')" class="w-full md:w-auto bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white font-bold px-6 py-3 rounded-xl transition duration-200 shadow-lg shadow-emerald-600/20 flex justify-center items-center gap-2">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
-                إعادة الضبط (إطفاء الأعطال / إضاءة خضراء)
-            </button>
-            <div class="text-xs text-slate-400 font-mono" id="currentModeText">الحالة الحالية: جاهز</div>
-        </div>
-
-        <div class="bg-slate-950 p-3 rounded-xl border border-slate-800 text-right">
-            <div class="text-xs text-amber-400 mb-1 font-bold">سجل أوامر SP611E المباشرة:</div>
-            <p id="debugLog" class="text-xs text-slate-300 font-mono h-16 overflow-y-auto">في انتظار الاتصال بالبلوتوث...</p>
-        </div>
-    </footer>
-
-    <script>
-        // UUIDs الخاصة بقطعة SP611E
-        const SERVICE_UUIDS = [0xffe0, 0xfff0, '0000ffe0-0000-1000-8000-00805f9b34fb'];
-        const CHAR_UUIDS = [0xffe1, 0xfff1, '0000ffe1-0000-1000-8000-00805f9b34fb'];
-
-        let bluetoothDevice = null;
-        let ledCharacteristic = null;
-
-        function log(msg) {
-            const el = document.getElementById('debugLog');
-            el.innerHTML += `<br>> ${msg}`;
-            el.scrollTop = el.scrollHeight;
-        }
-
-        async function connectSP611E() {
-            const badge = document.getElementById('btBadge');
-            log("جارِ البحث عن قطعة البلوتوث...");
-
-            try {
-                bluetoothDevice = await navigator.bluetooth.requestDevice({
-                    acceptAllDevices: true,
-                    optionalServices: SERVICE_UUIDS
-                });
-
-                bluetoothDevice.addEventListener('gattserverdisconnected', () => {
-                    badge.innerText = "انقطع الاتصال";
-                    badge.className = "px-3 py-1.5 text-xs font-semibold rounded-lg bg-rose-500/10 text-rose-400 border border-rose-500/20";
-                    log("تم قطع الاتصال بالبلوتوث.");
-                    ledCharacteristic = null;
-                });
-
-                log("جارِ الربط بـ GATT Server...");
-                const server = await bluetoothDevice.gatt.connect();
-
-                let primaryService = null;
-                for (let sUuid of SERVICE_UUIDS) {
-                    try {
-                        primaryService = await server.getPrimaryService(sUuid);
-                        if (primaryService) break;
-                    } catch (e) {}
-                }
-
-                if (!primaryService) throw new Error("لم يتم العثور على الخدمة الصحيحة.");
-
-                for (let cUuid of CHAR_UUIDS) {
-                    try {
-                        ledCharacteristic = await primaryService.getCharacteristic(cUuid);
-                        if (ledCharacteristic) break;
-                    } catch (e) {}
-                }
-
-                if (!ledCharacteristic) throw new Error("لم يتم العثور على خاصية الكتابة.");
-
-                badge.innerText = "متصل بـ SP611E";
-                badge.className = "px-3 py-1.5 text-xs font-semibold rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20";
-                log("تم الاتصال بنجاح بقطعة SP611E!");
-
-                // إرسال أمر تشغيل الطاقة
-                await sendPowerOn();
-
-            } catch (err) {
-                log("خطأ في الاتصال: " + err.message);
-            }
-        }
-
-        async function sendPowerOn() {
-            if (!ledCharacteristic) return;
-            log("إرسال أمر التشغيل (Power ON)...");
-            const pwrPacket = new Uint8Array([0x38, 0x01, 0x00, 0x00, 0x00, 0x22, 0x83]);
-            await writeData(pwrPacket);
-        }
-
-        async function writeData(packet) {
-            if (!ledCharacteristic) return;
-            if (ledCharacteristic.properties.writeWithoutResponse) {
-                await ledCharacteristic.writeValueWithoutResponse(packet);
-            } else {
-                await ledCharacteristic.writeValue(packet);
-            }
-        }
-
-        async function sendColorToSP611E(r, g, b) {
-            if (!ledCharacteristic) {
-                log(`[محاكاة الشاشة] اللون المختار: R:${r} G:${g} B:${b} (يرجى الاتصال بالبلوتوث لتطبيق اللون)`);
-                return;
-            }
-
-            log(`إرسال حزمة اللون للمبات: R:${r} G:${g} B:${b}`);
-
-            // حزم الأوامر المتوافقة مع بروتوكولات Sperll / BanlanX
-            const packetSperll = new Uint8Array([0x38, r, g, b, 0x00, 0x22, 0x83]);
-            const packetBanlan = new Uint8Array([0x53, 0x05, 0x01, r, g, b, 0x00, 0x53]);
-
-            try {
-                await writeData(packetSperll);
-                await writeData(packetBanlan);
-            } catch (e) {
-                log("فشل الإرسال: " + e.message);
-            }
-        }
-
-        function triggerFault(type) {
-            const modeText = document.getElementById('currentModeText');
-
-            switch(type) {
-                case 'engine':
-                    modeText.innerText = "الحالة الحالية: عطل المحرك (Check Engine)";
-                    sendColorToSP611E(255, 180, 0); // لون أصفر تحذيري
-                    break;
-
-                case 'brakes':
-                    modeText.innerText = "الحالة الحالية: عطل الفرامل (Brakes)";
-                    sendColorToSP611E(255, 0, 0); // لون أحمر
-                    break;
-
-                case 'battery':
-                    modeText.innerText = "الحالة الحالية: عطل النظام الكهربائي (Battery)";
-                    sendColorToSP611E(0, 100, 255); // لون أزرق
-                    break;
-
-                case 'heat':
-                    modeText.innerText = "الحالة الحالية: ارتفاع حرارة المحرك (Overheating)";
-                    sendColorToSP611E(255, 60, 0); // لون برتقالي محمر
-                    break;
-
-                case 'reset':
-                    modeText.innerText = "الحالة الحالية: الفحص سليم / تشغيل عادي";
-                    sendColorToSP611E(0, 255, 0); // لون أخضر
-                    break;
-            }
-        }
-    </script>
+<body>
+<div class="wrap">
+<header>
+  <div>
+    <h1>🚗 لوحة أعطال السيارة</h1>
+    <div class="sub">تحكم مباشر في SP611E — كل عطل له لون خاص</div>
+  </div>
+  <div class="status"><span id="dot" class="dot"></span><span id="status">غير متصل</span></div>
+</header>
+
+<section class="panel">
+  <div class="controls">
+    <button class="primary" id="connect">🔵 اتصال بالـ SP611E</button>
+    <button class="off" id="off">⏻ إطفاء اللمبات</button>
+  </div>
+  <p class="note">استخدم Chrome أو Edge على جهاز يدعم Bluetooth. أغلق BanlanX قبل الاتصال لأن المتحكم يقبل اتصال Bluetooth واحدًا في نفس الوقت.</p>
+</section>
+
+<section class="panel">
+  <h2>الأعطال</h2>
+  <div class="grid">
+    <button class="fault" data-name="حرارة المحرك" data-color="255,0,0"><span class="icon">🌡️</span>حرارة المحرك<small>أحمر</small></button>
+    <button class="fault" data-name="ضغط الزيت" data-color="255,40,0"><span class="icon">🛢️</span>ضغط الزيت<small>أحمر برتقالي</small></button>
+    <button class="fault" data-name="البطارية / الشحن" data-color="255,210,0"><span class="icon">🔋</span>البطارية / الشحن<small>أصفر</small></button>
+    <button class="fault" data-name="فحص المحرك" data-color="255,105,0"><span class="icon">⚙️</span>Check Engine<small>برتقالي</small></button>
+    <button class="fault" data-name="نظام الفرامل" data-color="255,0,80"><span class="icon">🛑</span>نظام الفرامل<small>أحمر وردي</small></button>
+    <button class="fault" data-name="ضغط الإطارات" data-color="255,145,0"><span class="icon">🛞</span>ضغط الإطارات<small>برتقالي</small></button>
+    <button class="fault" data-name="ABS" data-color="255,235,0"><span class="icon">⭕</span>ABS<small>أصفر فاتح</small></button>
+    <button class="fault" data-name="نظام الوسائد الهوائية" data-color="255,0,35"><span class="icon">🧍</span>الوسائد الهوائية<small>أحمر</small></button>
+    <button class="fault" data-name="مستوى الوقود منخفض" data-color="255,80,0"><span class="icon">⛽</span>وقود منخفض<small>برتقالي</small></button>
+    <button class="fault" data-name="خدمة السيارة" data-color="120,0,255"><span class="icon">🔧</span>Service<small>بنفسجي</small></button>
+    <button class="fault" data-name="خطأ إلكتروني" data-color="0,120,255"><span class="icon">⚡</span>خطأ إلكتروني<small>أزرق</small></button>
+    <button class="fault" data-name="تحذير عام" data-color="255,255,255"><span class="icon">⚠️</span>تحذير عام<small>أبيض</small></button>
+  </div>
+</section>
+
+<section class="panel">
+  <h2>معاينة</h2>
+  <div class="preview" id="preview">
+    <span class="pixel"></span><span class="pixel"></span><span class="pixel"></span><span class="pixel"></span>
+    <span class="pixel"></span><span class="pixel"></span><span class="pixel"></span><span class="pixel"></span>
+  </div>
+  <p id="selected" class="note">لم يتم اختيار عطل.</p>
+</section>
+
+<section class="panel">
+  <h3>السجل</h3>
+  <div class="log" id="log">جاهز.</div>
+</section>
+</div>
+
+<script>
+const SERVICE_UUID = 0xffe0;
+const CHAR_UUID = 0xffe1;
+let device = null, characteristic = null;
+
+const $ = id => document.getElementById(id);
+function log(s){ $("log").textContent = new Date().toLocaleTimeString() + "  " + s; }
+function setStatus(ok, text){ $("status").textContent=text; $("dot").className="dot"+(ok?" on":""); }
+
+function packet(cmd, payload){
+  return new Uint8Array([0x53, cmd, 0x00, 0x01, 0x00, payload.length, ...payload]);
+}
+
+async function send(cmd, payload){
+  if(!characteristic) throw new Error("غير متصل");
+  await characteristic.writeValue(packet(cmd,payload));
+}
+
+async function setPower(on){
+  await send(0x50,[on?1:0]);
+}
+
+async function setColor(r,g,b,brightness=255){
+  // SP6xxE family static RGB command: 0x52 + R,G,B,brightness
+  await send(0x52,[r,g,b,brightness]);
+}
+
+async function connect(){
+  if(!navigator.bluetooth){ alert("المتصفح لا يدعم Web Bluetooth. استخدم Chrome أو Edge."); return; }
+  try{
+    setStatus(false,"جاري البحث...");
+    device = await navigator.bluetooth.requestDevice({
+      filters:[{namePrefix:"SP611E"},{namePrefix:"SP"}],
+      optionalServices:[SERVICE_UUID]
+    });
+    device.addEventListener("gattserverdisconnected",()=>{
+      characteristic=null; setStatus(false,"انقطع الاتصال"); log("Disconnected");
+    });
+    const server = await device.gatt.connect();
+    const service = await server.getPrimaryService(SERVICE_UUID);
+    characteristic = await service.getCharacteristic(CHAR_UUID);
+    setStatus(true,device.name || "SP611E متصل");
+    log("Connected to " + (device.name || "SP611E"));
+  }catch(e){
+    characteristic=null; setStatus(false,"غير متصل");
+    log("خطأ: " + e.message);
+  }
+}
+
+$("connect").onclick=connect;
+
+$("off").onclick=async()=>{
+  try{ await setPower(false); $("selected").textContent="تم إطفاء اللمبات."; log("OFF"); }
+  catch(e){ log("OFF failed: "+e.message); }
+};
+
+document.querySelectorAll(".fault").forEach(btn=>{
+  btn.onclick=async()=>{
+    const [r,g,b]=btn.dataset.color.split(",").map(Number);
+    document.querySelectorAll(".fault").forEach(x=>x.classList.remove("active"));
+    btn.classList.add("active");
+    $("selected").textContent=`العطل الحالي: ${btn.dataset.name} — RGB(${r}, ${g}, ${b})`;
+    document.querySelectorAll(".pixel").forEach(p=>{
+      p.style.background=`rgb(${r},${g},${b})`;
+      p.style.boxShadow=`0 0 18px rgb(${r},${g},${b})`;
+    });
+    try{
+      await setPower(true);
+      await setColor(r,g,b,255);
+      log(btn.dataset.name + " -> RGB " + [r,g,b].join(","));
+    }catch(e){
+      log("لم يتم الإرسال: "+e.message);
+      alert("اضغط «اتصال بالـ SP611E» أولاً.");
+    }
+  };
+});
+</script>
 </body>
 </html>
