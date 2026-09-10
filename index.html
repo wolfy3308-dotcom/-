@@ -41,7 +41,7 @@ button:hover{filter:brightness(1.12)}button.primary{background:#1778d2}button.da
     <button class="primary" id="testRed">🔴 اختبار أحمر</button>
     <button class="off" id="off">⏻ إطفاء اللمبات</button>
   </div>
-  <p class="note">استخدم Chrome أو Edge على جهاز يدعم Bluetooth. أغلق BanlanX قبل الاتصال لأن المتحكم يقبل اتصال Bluetooth واحدًا في نفس الوقت.</p>
+  <p class="note">استخدم Chrome أو Edge على جهاز يدعم Bluetooth. هذه النسخة تستخدم UUID القياسي لـSP611E. أغلق BanlanX قبل الاتصال لأن المتحكم يقبل اتصال Bluetooth واحدًا في نفس الوقت.</p>
 </section>
 
 <section class="panel">
@@ -79,7 +79,7 @@ button:hover{filter:brightness(1.12)}button.primary{background:#1778d2}button.da
 
 <script>
 // BanlanX SP611E: vendor service E0FF, command characteristic FFE1
-const SERVICE_UUID = "0000e0ff-3c17-d293-8e48-14fe2e4da212";
+const SERVICE_UUID = "0000e0ff-0000-1000-8000-00805f9b34fb";
 const CHAR_UUID = "0000ffe1-0000-1000-8000-00805f9b34fb";
 let device = null, characteristic = null;
 
@@ -92,16 +92,20 @@ function packet(cmd, payload){
 }
 
 async function send(cmd, payload){
-  if(!characteristic) throw new Error("غير متصل");
-  const data = packet(cmd,payload);
-  // BanlanX controllers commonly accept Write Without Response.
-  if (characteristic.properties.writeWithoutResponse &&
-      characteristic.writeValueWithoutResponse) {
-    await characteristic.writeValueWithoutResponse(data);
-  } else if (characteristic.properties.write) {
+  if(!characteristic || !device?.gatt?.connected) throw new Error("الاتصال غير موجود");
+
+  // BanlanX SP6xxE frame:
+  // 53 | command | 00 | 01 | 00 | payload length | payload...
+  const data = new Uint8Array([0x53, cmd, 0x00, 0x01, 0x00, payload.length, ...payload]);
+  log("TX: " + [...data].map(x=>x.toString(16).padStart(2,"0")).join(" "));
+
+  // Prefer Write With Response when available; SP6xxE accepts this path.
+  if(characteristic.properties.write && characteristic.writeValue){
     await characteristic.writeValue(data);
-  } else {
-    throw new Error("FFE1 لا يدعم الكتابة من هذا المتصفح");
+  }else if(characteristic.properties.writeWithoutResponse && characteristic.writeValueWithoutResponse){
+    await characteristic.writeValueWithoutResponse(data);
+  }else{
+    throw new Error("FFE1 لا يدعم الكتابة");
   }
 }
 
@@ -110,35 +114,48 @@ async function setPower(on){
 }
 
 async function setColor(r,g,b,brightness=255){
-  // SP6xxE family static RGB command: 0x52 + R,G,B,brightness
+  // SP6xxE static RGB: command 0x52 + R,G,B,brightness
   await send(0x52,[r,g,b,brightness]);
 }
 
 async function connect(){
-  if(!navigator.bluetooth){ alert("المتصفح لا يدعم Web Bluetooth. استخدم Chrome أو Edge."); return; }
+  if(!navigator.bluetooth){
+    alert("المتصفح لا يدعم Web Bluetooth. استخدم Chrome أو Edge.");
+    return;
+  }
+
   try{
-    setStatus(false,"جاري البحث...");
+    setStatus(false,"جاري الاتصال...");
     device = await navigator.bluetooth.requestDevice({
-      filters:[{namePrefix:"SP611E"}],
+      filters:[{name:"SP611E"}],
       optionalServices:[SERVICE_UUID]
     });
-    device.addEventListener("gattserverdisconnected",()=>{
-      characteristic=null; setStatus(false,"انقطع الاتصال"); log("Disconnected");
-    });
-    const server = await device.gatt.connect();
 
-    // The SP611E uses E0FF as its primary vendor service and FFE1 for commands.
+    device.addEventListener("gattserverdisconnected",()=>{
+      characteristic=null;
+      setStatus(false,"انقطع الاتصال");
+      log("BLE disconnected");
+    });
+
+    const server = await device.gatt.connect();
     const service = await server.getPrimaryService(SERVICE_UUID);
     characteristic = await service.getCharacteristic(CHAR_UUID);
 
-    log("GATT: " + service.uuid + " / " + characteristic.uuid);
-    log("خصائص الكتابة: " + JSON.stringify(characteristic.properties));
+    log("Service: " + service.uuid);
+    log("Characteristic: " + characteristic.uuid);
+    log("Write=" + characteristic.properties.write +
+        " / WriteWithoutResponse=" + characteristic.properties.writeWithoutResponse);
 
-    setStatus(true,device.name || "SP611E متصل");
-    log("Connected to " + (device.name || "SP611E"));
+    setStatus(true,"SP611E متصل");
+    log("تم الاتصال. إرسال استعلام الحالة...");
+
+    // SP6xxE state query.
+    await send(0x02,[0x01]);
+    log("جاهز — جرّب اختبار أحمر.");
   }catch(e){
-    characteristic=null; setStatus(false,"غير متصل");
-    log("خطأ: " + e.message);
+    characteristic=null;
+    setStatus(false,"غير متصل");
+    log("CONNECT ERROR: " + e.name + " — " + e.message);
   }
 }
 
