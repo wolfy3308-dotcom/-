@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>لوحة التحكيم والتشخيص - SP611E LED Controller</title>
+    <title>لوحة التحكم - SP611E LED Controller</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Supabase JS Client -->
@@ -11,26 +11,24 @@
 </head>
 <body class="bg-slate-900 text-white min-h-screen flex flex-col justify-between p-6">
 
-    <!-- شريط العرض العلوي وحالة الاتصال -->
+    <!-- الهيدر وحالة البلوتوث -->
     <header class="max-w-4xl w-full mx-auto flex flex-col md:flex-row justify-between items-center bg-slate-800 p-4 rounded-xl border border-slate-700 gap-4 mb-6">
         <div>
-            <h1 class="text-2xl font-bold text-amber-400">لوحة التحكم بالإضاءة الذكية</h1>
-            <p class="text-xs text-slate-400">متحكم SP611E (BanlanX) عبر Web Bluetooth</p>
+            <h1 class="text-2xl font-bold text-amber-400">لوحة التحكم بالإضاءة (SP611E)</h1>
+            <p class="text-xs text-slate-400">معالج بروتوكول Sperll / BanlanX المباشر</p>
         </div>
 
-        <!-- زر وحالة الاتصال بالبلوتوث -->
         <div class="flex items-center gap-3">
             <span id="btStatusBadge" class="px-3 py-1 text-xs font-semibold rounded-full bg-rose-500/20 text-rose-400 border border-rose-500/30">
                 غير متصل
             </span>
-            <button id="btConnectBtn" onclick="connectSP611E()" class="bg-indigo-600 hover:bg-indigo-500 active:scale-95 text-white text-sm font-bold px-4 py-2 rounded-lg transition duration-200 shadow-md flex items-center gap-2">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A13.916 13.916 0 008 11a4 4 0 118 0c0 1.017-.07 2.019-.203 3m-2.118 6.844A21.88 21.88 0 0015.171 17m3.839 1.132c.645-2.266.99-4.659.99-7.132A8 8 0 008 4.07M3 15.364c.64-1.319 1-2.8 1-4.364 0-1.457-.335-2.84-.93-4.072"></path></svg>
+            <button id="btConnectBtn" onclick="connectSP611E()" class="bg-indigo-600 hover:bg-indigo-500 active:scale-95 text-white text-sm font-bold px-4 py-2 rounded-lg transition duration-200 shadow-md">
                 اتصال بـ SP611E
             </button>
         </div>
     </header>
 
-    <!-- منطقة النتائج والسؤال -->
+    <!-- منطقة عرض النتيجة والسجل -->
     <main class="max-w-4xl w-full mx-auto bg-slate-800 p-6 rounded-xl border border-slate-700 shadow-xl flex-grow flex flex-col justify-center items-center text-center my-2">
         <div class="flex justify-center gap-8 text-lg font-semibold mb-6 w-full">
             <div class="bg-slate-900/60 px-6 py-3 rounded-lg border border-slate-700/50 flex-1">
@@ -41,127 +39,157 @@
             </div>
         </div>
 
-        <div id="questionContainer" class="w-full my-4">
-            <h2 id="questionText" class="text-2xl font-semibold mb-2">جاهز لبدء التشغيل</h2>
-            <p id="ledLog" class="text-sm text-slate-400 font-mono">اضغط على زر الاتصال بالبلوتوث أولاً</p>
+        <div class="w-full my-2 bg-slate-950 p-4 rounded-lg border border-slate-800 text-right">
+            <div class="text-xs text-amber-400 mb-1 font-bold">سجل التشخيص والبيانات (Debug Console):</div>
+            <p id="ledLog" class="text-xs text-emerald-400 font-mono leading-relaxed h-20 overflow-y-auto">اضغط على "اتصال بـ SP611E" لبدء الربط...</p>
         </div>
     </main>
 
-    <!-- أزرار الأوامر والإضاءة -->
+    <!-- أزرار الأوامر -->
     <footer class="max-w-4xl w-full mx-auto grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-        <button onclick="judgeCorrect()" class="bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white text-xl font-bold py-5 rounded-xl shadow-lg transition duration-200 flex justify-center items-center gap-2">
+        <button onclick="judgeCorrect()" class="bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white text-xl font-bold py-5 rounded-xl shadow-lg transition duration-200">
             إجابة صحيحة (أخضر)
         </button>
-        <button onclick="judgeWrong()" class="bg-rose-600 hover:bg-rose-500 active:scale-95 text-white text-xl font-bold py-5 rounded-xl shadow-lg transition duration-200 flex justify-center items-center gap-2">
+        <button onclick="judgeWrong()" class="bg-rose-600 hover:bg-rose-500 active:scale-95 text-white text-xl font-bold py-5 rounded-xl shadow-lg transition duration-200">
             إجابة خاطئة (أحمر)
         </button>
     </footer>
 
     <script>
-        // -------------------------------------------------------------
-        // 1. إعدادات محددات البلوتوث المخصصة لقطعة SP611E
-        // -------------------------------------------------------------
-        const SP611E_SERVICE_UUID = 0xffe0;
-        const SP611E_CHARACTERISTIC_UUID = 0xffe1;
+        // الخدمات التي تعتمدها شرائح SP611E و BanlanX
+        const SERVICE_UUIDS = [0xffe0, 0xfff0, '0000ffe0-0000-1000-8000-00805f9b34fb', '0000fff0-0000-1000-8000-00805f9b34fb'];
+        const CHAR_UUIDS = [0xffe1, 0xfff1, '0000ffe1-0000-1000-8000-00805f9b34fb', '0000fff1-0000-1000-8000-00805f9b34fb'];
 
         let bluetoothDevice = null;
         let ledCharacteristic = null;
 
-        // دالة الاتصال عبر Web Bluetooth
+        function log(msg) {
+            const logEl = document.getElementById('ledLog');
+            logEl.innerHTML += `<br>> ${msg}`;
+            logEl.scrollTop = logEl.scrollHeight;
+        }
+
         async function connectSP611E() {
             const statusBadge = document.getElementById('btStatusBadge');
-            const logEl = document.getElementById('ledLog');
+            document.getElementById('ledLog').innerHTML = "جارِ البحث عن الجهاز...";
 
             try {
-                logEl.innerText = "جارِ البحث عن شريحة SP611E...";
-                
                 bluetoothDevice = await navigator.bluetooth.requestDevice({
-                    filters: [
-                        { namePrefix: 'SP6' },
-                        { namePrefix: 'Banlan' },
-                        { services: [SP611E_SERVICE_UUID] }
-                    ],
-                    optionalServices: [SP611E_SERVICE_UUID, 0xffa0, '0000ffe0-0000-1000-8000-00805f9b34fb']
+                    acceptAllDevices: true,
+                    optionalServices: SERVICE_UUIDS
                 });
 
                 bluetoothDevice.addEventListener('gattserverdisconnected', onDisconnected);
+                log("تم اختيار الجهاز: " + bluetoothDevice.name);
 
-                logEl.innerText = "جارِ الربط مع خادم GATT...";
                 const server = await bluetoothDevice.gatt.connect();
-                
-                logEl.innerText = "جارِ جلب الخدمة والخاصية...";
-                const service = await server.getPrimaryService(SP611E_SERVICE_UUID);
-                ledCharacteristic = await service.getCharacteristic(SP611E_CHARACTERISTIC_UUID);
+                log("تم الاتصال بـ GATT Server.");
 
-                // تحديث الواجهة عند نجاح الاتصال
+                // مسح الخدمات المتاحة للوصول للخاصية الصحيحة
+                let primaryService = null;
+                for (let sUuid of SERVICE_UUIDS) {
+                    try {
+                        primaryService = await server.getPrimaryService(sUuid);
+                        if (primaryService) {
+                            log(`تم العثور على الخدمة: ${sUuid}`);
+                            break;
+                        }
+                    } catch (e) {}
+                }
+
+                if (!primaryService) {
+                    throw new Error("لم يتم العثور على خدمة FFE0 أو FFF0 مطابقة في القطعة.");
+                }
+
+                for (let cUuid of CHAR_UUIDS) {
+                    try {
+                        ledCharacteristic = await primaryService.getCharacteristic(cUuid);
+                        if (ledCharacteristic) {
+                            log(`تم العثور على قناة الكتابة: ${cUuid}`);
+                            break;
+                        }
+                    } catch (e) {}
+                }
+
+                if (!ledCharacteristic) {
+                    throw new Error("لم يتم العثور على قناة كتابة FFE1 أو FFF1.");
+                }
+
                 statusBadge.innerText = "متصل بـ SP611E";
                 statusBadge.className = "px-3 py-1 text-xs font-semibold rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30";
-                logEl.innerText = "تم الاتصال بنجاح! يمكن الآن إرسال الأوامر للمبات.";
+
+                // إرسال أمر تشغيل الطاقة فور الاتصال (Power ON)
+                await sendPowerOn();
 
             } catch (error) {
-                console.error("خطأ الاتصال بالبلوتوث:", error);
-                logEl.innerText = "فشل الاتصال: " + error.message;
+                log("خطأ: " + error.message);
             }
         }
 
         function onDisconnected() {
             const statusBadge = document.getElementById('btStatusBadge');
-            const logEl = document.getElementById('ledLog');
             statusBadge.innerText = "غير متصل";
             statusBadge.className = "px-3 py-1 text-xs font-semibold rounded-full bg-rose-500/20 text-rose-400 border border-rose-500/30";
-            logEl.innerText = "انقطع الاتصال بالبلوتوث.";
+            log("انقطع الاتصال بالقطعة.");
             ledCharacteristic = null;
         }
 
-        // دالة إرسال البايتات المباشرة لقطعة SP611E (Hex Protocol)
-        async function setSP611EColor(r, g, b) {
-            const logEl = document.getElementById('ledLog');
+        // أمر تشغيل الشريحة (Sperll Power ON)
+        async function sendPowerOn() {
+            if (!ledCharacteristic) return;
+            log("إرسال أمر التشغيل (Power ON)...");
+            
+            // حزمة التشغيل الخاصة بـ Sperll SP611E
+            const pwrPacket = new Uint8Array([0x38, 0x01, 0x00, 0x00, 0x00, 0x22, 0x83]);
+            await writeToDevice(pwrPacket);
+        }
 
+        // دالة إرسال لون الإضاءة بصيغة Sperll/BanlanX المعتمدة
+        async function setSP611EColor(r, g, b) {
             if (!ledCharacteristic) {
-                logEl.innerText = "تنبيه: اللمبة غير متصلة عبر البلوتوث حالياً!";
+                log("تنبيه: اللمبة غير متصلة!");
                 return;
             }
 
-            // صيغة حزمة الأوامر الخاصة ببروتوكول BanlanX / SP611E
-            const commandPacket = new Uint8Array([
-                0x53,       // Header Start (S)
-                0x05,       // Length
-                0x01,       // Static Mode Command
-                r,          // Red (0-255)
-                g,          // Green (0-255)
-                b,          // Blue (0-255)
-                0x00,       // Parameter
-                0x53        // End Byte (S)
-            ]);
+            log(`إرسال اللون (R:${r}, G:${g}, B:${b})...`);
+
+            // بناء الحزمة الأساسية لشريحة SP611E (Sperll Protocol 0x38)
+            // 0x38 = Header | R, G, B = Colors | 0x22 = Mode | 0x83 = Tail
+            const packetFormat1 = new Uint8Array([0x38, r, g, b, 0x00, 0x22, 0x83]);
+            
+            // صيغة بديلة للـ BanlanX (0x53 Header)
+            const packetFormat2 = new Uint8Array([0x53, 0x05, 0x01, r, g, b, 0x00, 0x53]);
 
             try {
-                // المحاولة باستخدام writeValueWithoutResponse لتجنب حظر المتصفح للأوامر السريعة
-                if (ledCharacteristic.properties.writeWithoutResponse) {
-                    await ledCharacteristic.writeValueWithoutResponse(commandPacket);
-                } else {
-                    await ledCharacteristic.writeValue(commandPacket);
-                }
-                logEl.innerText = `تم إرسال لون الإضاءة بنجاح (R:${r}, G:${g}, B:${b})`;
+                // إرسال البروتوكول الرئيسي
+                await writeToDevice(packetFormat1);
+                // إرسال البروتوكول المساند لضمان التوافق مع إصدار الفيرموير
+                await writeToDevice(packetFormat2);
             } catch (error) {
-                console.error("خطأ إرسال حزمة البايتات:", error);
-                logEl.innerText = "فشل إرسال حزمة البايتات: " + error.message;
+                log("فشل إرسال اللون: " + error.message);
+            }
+        }
+
+        async function writeToDevice(packet) {
+            if (ledCharacteristic.properties.writeWithoutResponse) {
+                await ledCharacteristic.writeValueWithoutResponse(packet);
+            } else {
+                await ledCharacteristic.writeValue(packet);
             }
         }
 
         // -------------------------------------------------------------
-        // 2. إعدادات Supabase والتحكيم
+        // Supabase والتحكيم
         // -------------------------------------------------------------
         const SUPABASE_URL = 'YOUR_SUPABASE_URL';
         const SUPABASE_KEY = 'YOUR_SUPABASE_ANON_KEY';
         const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
         let currentRoom = null;
-        let roomChannel = null;
         let judgeCurrentTeam = 'A';
 
-        // عند الضغط على إجابة صحيحة (أخضر)
         function judgeCorrect() {
-            setSP611EColor(0, 255, 0); // لون أخضر صافٍ
+            setSP611EColor(0, 255, 0); // أخضر
 
             if (!currentRoom) return;
             const pointsEarned = currentRoom.options_shown ? 1 : 2;
@@ -175,9 +203,8 @@
             updateRoomFields(fields);
         }
 
-        // عند الضغط على إجابة خاطئة (أحمر)
         function judgeWrong() {
-            setSP611EColor(255, 0, 0); // لون أحمر صافٍ
+            setSP611EColor(255, 0, 0); // أحمر
 
             if (!currentRoom) return;
             updateRoomFields({ last_event: { type: 'wrong', team: judgeCurrentTeam, nonce: Date.now() } });
@@ -189,42 +216,6 @@
                 .from('rooms')
                 .update(fields)
                 .eq('id', currentRoom.id);
-        }
-
-        // الاستماع للتحديثات اللحظية
-        function subscribeToRoomRealtime(roomId) {
-            if (roomChannel) supabaseClient.removeChannel(roomChannel);
-            roomChannel = supabaseClient
-                .channel('judge-room-' + roomId)
-                .on('postgres_changes', {
-                    event: 'UPDATE',
-                    schema: 'public',
-                    table: 'rooms',
-                    filter: `id=eq.${roomId}`
-                }, (payload) => {
-                    const oldRow = currentRoom || {};
-                    currentRoom = payload.new;
-
-                    if (currentRoom.last_event && JSON.stringify(currentRoom.last_event) !== JSON.stringify(oldRow.last_event)) {
-                        if (currentRoom.last_event.type === 'correct') {
-                            setSP611EColor(0, 255, 0);
-                        } else if (currentRoom.last_event.type === 'wrong') {
-                            setSP611EColor(255, 0, 0);
-                        }
-                    }
-
-                    renderRoomState();
-                })
-                .subscribe();
-        }
-
-        function renderRoomState() {
-            if (!currentRoom) return;
-            document.getElementById('scoreA').innerText = currentRoom.score_a || 0;
-            document.getElementById('scoreB').innerText = currentRoom.score_b || 0;
-            if (currentRoom.current_question) {
-                document.getElementById('questionText').innerText = currentRoom.current_question;
-            }
         }
     </script>
 </body>
