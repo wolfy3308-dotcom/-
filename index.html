@@ -38,6 +38,7 @@ button:hover{filter:brightness(1.12)}button.primary{background:#1778d2}button.da
 <section class="panel">
   <div class="controls">
     <button class="primary" id="connect">🔵 اتصال بالـ SP611E</button>
+    <button class="primary" id="testRed">🔴 اختبار أحمر</button>
     <button class="off" id="off">⏻ إطفاء اللمبات</button>
   </div>
   <p class="note">استخدم Chrome أو Edge على جهاز يدعم Bluetooth. أغلق BanlanX قبل الاتصال لأن المتحكم يقبل اتصال Bluetooth واحدًا في نفس الوقت.</p>
@@ -77,8 +78,9 @@ button:hover{filter:brightness(1.12)}button.primary{background:#1778d2}button.da
 </div>
 
 <script>
-const SERVICE_UUID = 0xffe0;
-const CHAR_UUID = 0xffe1;
+// BanlanX SP611E: vendor service E0FF, command characteristic FFE1
+const SERVICE_UUID = "0000e0ff-3c17-d293-8e48-14fe2e4da212";
+const CHAR_UUID = "0000ffe1-0000-1000-8000-00805f9b34fb";
 let device = null, characteristic = null;
 
 const $ = id => document.getElementById(id);
@@ -91,7 +93,16 @@ function packet(cmd, payload){
 
 async function send(cmd, payload){
   if(!characteristic) throw new Error("غير متصل");
-  await characteristic.writeValue(packet(cmd,payload));
+  const data = packet(cmd,payload);
+  // BanlanX controllers commonly accept Write Without Response.
+  if (characteristic.properties.writeWithoutResponse &&
+      characteristic.writeValueWithoutResponse) {
+    await characteristic.writeValueWithoutResponse(data);
+  } else if (characteristic.properties.write) {
+    await characteristic.writeValue(data);
+  } else {
+    throw new Error("FFE1 لا يدعم الكتابة من هذا المتصفح");
+  }
 }
 
 async function setPower(on){
@@ -108,15 +119,21 @@ async function connect(){
   try{
     setStatus(false,"جاري البحث...");
     device = await navigator.bluetooth.requestDevice({
-      filters:[{namePrefix:"SP611E"},{namePrefix:"SP"}],
+      filters:[{namePrefix:"SP611E"}],
       optionalServices:[SERVICE_UUID]
     });
     device.addEventListener("gattserverdisconnected",()=>{
       characteristic=null; setStatus(false,"انقطع الاتصال"); log("Disconnected");
     });
     const server = await device.gatt.connect();
+
+    // The SP611E uses E0FF as its primary vendor service and FFE1 for commands.
     const service = await server.getPrimaryService(SERVICE_UUID);
     characteristic = await service.getCharacteristic(CHAR_UUID);
+
+    log("GATT: " + service.uuid + " / " + characteristic.uuid);
+    log("خصائص الكتابة: " + JSON.stringify(characteristic.properties));
+
     setStatus(true,device.name || "SP611E متصل");
     log("Connected to " + (device.name || "SP611E"));
   }catch(e){
@@ -126,6 +143,23 @@ async function connect(){
 }
 
 $("connect").onclick=connect;
+
+$("testRed").onclick=async()=>{
+  try{
+    await setPower(true);
+    await new Promise(r=>setTimeout(r,120));
+    await setColor(255,0,0,255);
+    $("selected").textContent="اختبار: أحمر";
+    document.querySelectorAll(".pixel").forEach(p=>{
+      p.style.background="rgb(255,0,0)";
+      p.style.boxShadow="0 0 18px rgb(255,0,0)";
+    });
+    log("TEST RED sent");
+  }catch(e){
+    log("TEST RED failed: "+e.message);
+    alert("الاتصال موجود لكن إرسال الأمر فشل: "+e.message);
+  }
+};
 
 $("off").onclick=async()=>{
   try{ await setPower(false); $("selected").textContent="تم إطفاء اللمبات."; log("OFF"); }
